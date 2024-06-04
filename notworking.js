@@ -32,6 +32,7 @@ window.addEventListener('load',function(){
             this.height=3;
             this.speed=3;
             this.markedForDeletion=false;
+            this.image=document.getElementById('projectile');
         }
         update(){
             this.x+=this.speed;
@@ -39,8 +40,7 @@ window.addEventListener('load',function(){
                 this.markedForDeletion=true;
         }
         draw(context){
-            context.fillStyle='yellow';
-            context.fillRect(this.x,this.y,this.width,this.height);
+            context.drawImage(this.image,this.x,this.y);
         }
     }
     class Particle{
@@ -72,6 +72,11 @@ window.addEventListener('load',function(){
             else   
                 this.speedY=0;
             this.y+=this.speedY;
+            //handling player boundaries
+            if(this.y>this.game.height-this.height*0.5)
+                this.y=this.game.height-this.height*0.5;
+            else if(this.y<-this.height*0.5)
+                this.y=-this.height*0.5;
             //handling sotrage of all active projectiles
             this.projectiles.forEach(projectile=>{
                 projectile.update();
@@ -92,25 +97,39 @@ window.addEventListener('load',function(){
                 }
                 else{
                    this.powerUpTimer+=delta;
-                   frameY=1;
+                   this.frameY=1;
                    this.game.ammo+=0.1;
                 }
             }
         }
         draw(context){
             context.fillStyle='black';
-            if(this.game.debug) context.strokeRect(this.x, this.y, this.width, this.height);
-            context.drawImage(this.image, this.frameX*this.width, this.frameY*this.height, this.width, this.height,this.x,this.y,this.width,this.height);
+            if(this.game.debug) 
+                context.strokeRect(this.x, this.y, this.width, this.height);
             this.projectiles.forEach(projectile=>{
                 projectile.draw(context);
-            })
+            });
+            context.drawImage(this.image, this.frameX*this.width, this.frameY*this.height, this.width, this.height,this.x,this.y,this.width,this.height);
         }
         shootTop(){
             if(this.game.ammo>0){
-                this.projectiles.push(new Projectile(this.game,this.x,this.y));
+                this.projectiles.push(new Projectile(this.game,this.x+80,this.y+30));
                 console.log(this.projectiles);
                 this.game.ammo--;
             }
+            if(this.powerUp)this.shootBottom();
+        }
+        shootBottom(){
+            if(this.game.ammo>0){
+                this.projectiles.push(new Projectile(this.game,this.x+80,this.y+175));
+                console.log(this.projectiles);
+                this.game.ammo--;
+            }
+        }
+        enterPowerUp(){
+            this.powerUpTimer=0;
+            this.powerUp=true;
+            this.game.ammo=this.game.maxAmmo;
         }
     }
     class Enemy{
@@ -120,7 +139,7 @@ window.addEventListener('load',function(){
             this.speedX=Math.random()*-1.5-0.5;
             this.markedForDeletion=false;
             this.frameX=0;
-            this.framey=0;
+            this.frameY=0;
             this.maxFrame=37;
         }
         update(){
@@ -134,7 +153,8 @@ window.addEventListener('load',function(){
             if(this.game.debug)context.strokeRect(this.x,this.y,this.width,this.height);
             context.drawImage(this.image,this.frameX*this.width,this.frameY*this.height,this.width,this.height,this.x,this.y,this.width,this.height);
             context.font='20px Helvetica';
-            context.fillText(this.lives,this.x,this.y);
+            if(this.game.debug)
+                context.fillText(this.lives,this.x,this.y);
         }
     }
     class Angler1 extends Enemy{
@@ -217,12 +237,13 @@ window.addEventListener('load',function(){
         constructor(game){
             this.game=game;
             this.fontSize=25;
-            this.fontFamily='Helvetica';
-            this.color='yellow';
+            this.fontFamily='Bangers';
+            this.color='white';
         }
         draw(context){
             context.save();
             context.fillStyle=this.color;
+            if(this.game.player.powerUp) context.fillStyle='#ffffbd';
             context.shadowOffsetX=2;
             context.shadowOffsetY=2;
             context.shadowColor='black';
@@ -247,9 +268,9 @@ window.addEventListener('load',function(){
                     message1='You lose :(';
                     message2='Better Luck next time!';
                 }
-                context.font='50px '+this.fontFamily;
+                context.font='70px '+this.fontFamily;
                 context.fillText(message1,this.game.width*0.5,this.game.height*0.5-40);
-                context.font='25px '+this.fontFamily;
+                context.font='40px '+this.fontFamily;
                 context.fillText(message2,this.game.width*0.5,this.game.height*0.5+40);
             }
             context.restore();
@@ -297,6 +318,11 @@ window.addEventListener('load',function(){
                 enemy.update();
                 if(this.checkCollision(this.player,enemy)){
                     enemy.markedForDeletion=true;
+                    if(enemy.type==='lucky'){
+                        this.player.enterPowerUp();
+                    }
+                    else 
+                        this.score--;
                 }
                 this.player.projectiles.forEach(projectile=>{
                     if(this.checkCollision(projectile,enemy)){
@@ -324,10 +350,10 @@ window.addEventListener('load',function(){
         draw(context){
             this.backgroud.draw(context);
             this.player.draw(context);
-            this.ui.draw(context);
             this.enemies.forEach(enemy=>{
                 enemy.draw(context);
             })
+            this.ui.draw(context);
             this.backgroud.layer4.draw(context);
         }
         addEnemy(){
